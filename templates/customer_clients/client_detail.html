@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ client.name }} - CRM{% endblock %}
+
+{% block content %}
+<h1>{{ client.name }}</h1>
+<div class="card">
+    <div class="card-body">
+        <p><strong>Телефон:</strong> {{ client.phone }}</p>
+        <p><strong>Адрес:</strong> {{ client.address }}</p>
+        <p><strong>Источник:</strong> {{ client.get_source_display }}</p>
+    </div>
+</div>
+
+<h3>Заказы</h3>
+<div class="table-responsive">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Статус</th>
+                <th>Сумма</th>
+                <th>Дата создания</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.id }}</td>
+                <td>{{ order.get_status_display }}</td>
+                <td>{{ order.total_cost }}</td>
+                <td>{{ order.created_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

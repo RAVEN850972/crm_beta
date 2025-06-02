@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Расчет зарплат - CRM{% endblock %}
+
+{% block content %}
+<h1>Расчет зарплат</h1>
+<form method="post">
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-body">
+            <h5>Параметры расчета</h5>
+            <!-- Здесь будет форма расчета -->
+            <p>Форма расчета зарплаты</p>
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">Рассчитать</button>
+</form>
+
+{% if calculation_result %}
+<div class="card mt-4">
+    <div class="card-body">
+        <h5>Результат расчета</h5>
+        <p>Общая зарплата: {{ calculation_result.total_salary }}</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
