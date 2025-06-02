@@ -11,9 +11,10 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Count, Sum, Q
 from django.db.models.functions import TruncMonth, TruncDay
 from django.utils import timezone
+from decimal import Decimal
 
-from user_accounts.models import User  # Исправлено с accounts.models
-from customer_clients.models import Client  # Исправлено с clients.models
+from user_accounts.models import User
+from customer_clients.models import Client
 from services.models import Service
 from orders.models import Order, OrderItem
 from finance.models import Transaction, SalaryPayment
@@ -112,21 +113,32 @@ class ServiceViewSet(viewsets.ModelViewSet):
                 return [DenyAll()]
         return [IsAuthenticated()]
 
-class ServiceViewSet(viewsets.ModelViewSet):
-    queryset = Service.objects.all()
-    serializer_class = ServiceSerializer
+class OrderViewSet(viewsets.ModelViewSet):
+    queryset = Order.objects.all()
+    serializer_class = OrderSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['category']
-    search_fields = ['name']
+    filterset_fields = ['status', 'manager']
+    search_fields = ['client__name', 'client__phone']
     
     def get_permissions(self):
-        """Права доступа к услугам"""
+        """Права доступа к заказам"""
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            # Создание и редактирование только для владельца
-            if self.request.user.role != 'owner':
+            # Создание и редактирование только для владельца и менеджера
+            if self.request.user.role not in ['owner', 'manager']:
                 from rest_framework.permissions import DenyAll
                 return [DenyAll()]
         return [IsAuthenticated()]
+    
+    def get_queryset(self):
+        """Фильтрация заказов по правам доступа"""
+        if self.request.user.role == 'owner':
+            return Order.objects.all()
+        elif self.request.user.role == 'manager':
+            # Менеджер видит только свои заказы
+            return Order.objects.filter(manager=self.request.user)
+        else:  # installer
+            # Монтажник видит только заказы, где он назначен
+            return Order.objects.filter(installers=self.request.user)
 
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
@@ -141,7 +153,6 @@ class TransactionViewSet(viewsets.ModelViewSet):
             from rest_framework.permissions import DenyAll
             return [DenyAll()]
         return [IsAuthenticated()]
-
 
 class SalaryPaymentViewSet(viewsets.ModelViewSet):
     queryset = SalaryPayment.objects.all()
@@ -511,7 +522,7 @@ if SALARY_CONFIG_AVAILABLE:
                 end_datetime = datetime.combine(end_date, datetime.max.time())
                 
                 if user_id:
-                    user = get_object_or_404(User, pk=user_id)
+                    user = User.objects.get(pk=user_id)
                     
                     if user.role == 'installer':
                         result = SalaryCalculationService.calculate_installer_salary(
@@ -547,17 +558,10 @@ if SALARY_CONFIG_AVAILABLE:
                 
                 result = convert_decimals(result)
                 
-                serializer = SalaryCalculationSerializer(data=result)
-                if serializer.is_valid():
-                    return Response({
-                        'success': True,
-                        'data': serializer.validated_data
-                    })
-                else:
-                    return Response({
-                        'success': True,
-                        'data': result  # Возвращаем как есть, если сериализатор не подошел
-                    })
+                return Response({
+                    'success': True,
+                    'data': result
+                })
                 
             except ValueError as e:
                 return Response({
